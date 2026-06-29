@@ -9,12 +9,14 @@ const githubService = new GitHubService();
 const geminiService = new GeminiService();
 const openRouterService = new OpenRouterService();
 
-function getErrorHint(status) {
+function getErrorHint(status, isAiError = false) {
     switch (status) {
         case 400:
             return "Use uma URL pública válida do GitHub no formato https://github.com/owner/repo.";
         case 401:
-            return "Verifique as credenciais configuradas no backend.";
+            return isAiError
+                ? "Chave de API do provedor de IA inválida ou sem créditos (Google/OpenRouter)."
+                : "Chave do GitHub (GITHUB_TOKEN) inválida configurada no backend.";
         case 403:
             return "Acesso negado pela API. Verifique as credenciais e permissões.";
         case 404:
@@ -61,10 +63,12 @@ function isAiProviderError(error) {
 
     return (
         requestUrl.includes("generativelanguage.googleapis.com") ||
+        requestUrl.includes("openrouter.ai") ||
         providerMessage.includes("gemini") ||
         providerMessage.includes("claude") ||
         providerMessage.includes("anthropic") ||
-        providerMessage.includes("openai")
+        providerMessage.includes("openai") ||
+        providerMessage.includes("openrouter")
     );
 }
 
@@ -234,11 +238,12 @@ export async function analyzeRepository(req, res) {
             });
         }
 
+        const isAiError = isAiProviderError(error);
         return res.status(statusCode).json({
             error: lang === "pt" ? "Erro ao analisar repositório" : "Error analyzing repository",
             code: error.code || "ANALYZE_FAILED",
             details: sanitizeErrorDetails(error),
-            hint: isAiProviderError(error) ? getAiProviderHint(lang) : getErrorHint(statusCode),
+            hint: isAiError && statusCode !== 401 ? getAiProviderHint(lang) : getErrorHint(statusCode, isAiError),
         });
     } finally {
         guard.release?.();
