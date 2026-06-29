@@ -24,6 +24,8 @@ const RepoStats = lazy(() => import("./components/RepoStats"));
 const ApiKeyModal = lazy(() => import("./components/ApiKeyModal").then(m => ({ default: m.ApiKeyModal })));
 const UsageIndicator = lazy(() => import("./components/UsageIndicator").then(m => ({ default: m.UsageIndicator })));
 const ApiKeySettings = lazy(() => import("./components/ApiKeySettings").then(m => ({ default: m.ApiKeySettings })));
+const ShareAnalysis = lazy(() => import("./components/ShareAnalysis"));
+const SharedAnalysis = lazy(() => import("./components/SharedAnalysis"));
 
 const HISTORY_KEY = "repolens-history";
 const AI_OUTAGE_KEY = "repolens-ai-outage";
@@ -72,7 +74,7 @@ function persistServiceUnavailable(state) {
   }
 }
 
-function App() {
+function AppMain() {
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -708,6 +710,13 @@ function App() {
         )}
 
         {/* Results */}
+        {analysis && !loading && (
+          <div className="max-w-3xl md:max-w-5xl mx-auto flex justify-end mb-2">
+            <Suspense fallback={null}>
+              <ShareAnalysis analysis={analysis} repoUrl={currentRepoUrl} />
+            </Suspense>
+          </div>
+        )}
         <Suspense fallback={<div className="max-w-3xl mx-auto space-y-4"><div className="skeleton h-48 rounded-2xl" /><div className="skeleton h-48 rounded-2xl" /></div>}>
           <AnalysisResult analysis={analysis} loading={loading} duration={duration} repoName={repoName} />
         </Suspense>
@@ -770,6 +779,18 @@ function App() {
       <SpeedInsights />
     </div>
   );
+}
+
+function App() {
+  const shareMatch = window.location.pathname.match(/^\/share\/([^/?#]+)/);
+  if (shareMatch) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+        <SharedAnalysis shareId={shareMatch[1]} />
+      </Suspense>
+    );
+  }
+  return <AppMain />;
 }
 
 export default App
