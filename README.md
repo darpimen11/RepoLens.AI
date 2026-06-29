@@ -6,7 +6,7 @@
 [![Built with Copilot CLI](https://img.shields.io/badge/Built%20with-GitHub%20Copilot%20CLI-8957e5?logo=github)](https://github.com/features/copilot)
 [![Gemini AI](https://img.shields.io/badge/Powered%20by-Google%20Gemini%20AI-4285f4?logo=google)](https://ai.google.dev)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?logo=react)](https://react.dev)
-
+![RepoLens Score](https://repolens-ai.vercel.app/api/badge/darpimen11/RepoLens.AI.svg)
 ## What is RepoLens AI?
 
 RepoLens AI is a web application that provides instant, comprehensive analysis of any public GitHub repository using **Google Gemini AI**. Paste a repo URL and get:
