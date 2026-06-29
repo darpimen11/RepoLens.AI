@@ -1,0 +1,90 @@
+name: RepoLens Analysis
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze PR
+        id: analysis
+        run: |
+          REPO_URL="https://github.com/${{ github.repository }}"
+          RESULT=$(curl -s -w "\n%{http_code}" -X POST https://repolens-ai.vercel.app/api/analyze \
+            -H "Content-Type: application/json" \
+            -d "{\"repoUrl\": \"${REPO_URL}\", \"lang\": \"en\"}" \
+            --max-time 60)
+
+          HTTP_CODE=$(echo "$RESULT" | tail -1)
+          BODY=$(echo "$RESULT" | sed '$d')
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "RepoLens API returned HTTP $HTTP_CODE"
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "error=API returned status $HTTP_CODE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Extract the analysis text (first 2000 chars to avoid comment size limits)
+          ANALYSIS=$(echo "$BODY" | python3 -c "
+          import sys, json
+          try:
+              data = json.load(sys.stdin)
+              text = data.get('analysis', '')
+              # Extract RESUMO_ARQUITETURAL section as summary
+              sections = text.split('## ')
+              summary = ''
+              for s in sections:
+                  if s.startswith('RESUMO_ARQUITETURAL'):
+                      summary = s.replace('RESUMO_ARQUITETURAL', '').strip()[:800]
+                      break
+              if not summary:
+                  summary = text[:800]
+              print(summary)
+          except:
+              print('Could not parse analysis')
+          ")
+
+          # Write to file to avoid shell escaping issues
+          echo "$ANALYSIS" > /tmp/repolens_summary.txt
+          echo "success=true" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        if: steps.analysis.outputs.success == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = 'Analysis completed.';
+            try {
+              summary = fs.readFileSync('/tmp/repolens_summary.txt', 'utf8').trim();
+            } catch (e) {
+              console.log('Could not read summary file:', e.message);
+            }
+
+            const body = `## 🔍 RepoLens Analysis\n\n${summary}\n\n---\n*Powered by [RepoLens.AI](https://repolens-ai.vercel.app) — AI-powered repository analysis*`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Comment failure
+        if: steps.analysis.outputs.success == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const error = '${{ steps.analysis.outputs.error }}';
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔍 RepoLens Analysis\n\n⚠️ Analysis could not be completed: ${error}\n\nTry running manually at [repolens-ai.vercel.app](https://repolens-ai.vercel.app)`
+            });
