@@ -1,5 +1,10 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { applyApiHeaders } from '../../server/services/apiResponses.js';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+});
 
 export default async function handler(req, res) {
   applyApiHeaders(res);
@@ -15,11 +20,14 @@ export default async function handler(req, res) {
   try {
     const { id } = req.query;
 
-    const data = await kv.get(`share:${id}`);
+    const raw = await redis.get(`share:${id}`);
 
-    if (!data) {
+    if (!raw) {
       return res.status(404).json({ error: 'Share not found' });
     }
+
+    // @upstash/redis auto-parses JSON strings; handle both cases
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
     return res.status(200).json(data);
   } catch (error) {

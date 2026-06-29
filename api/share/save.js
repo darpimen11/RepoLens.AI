@@ -1,6 +1,11 @@
 import crypto from 'crypto';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { applyApiHeaders } from '../../server/services/apiResponses.js';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+});
 
 const SHARE_TTL = 2592000; // 30 days in seconds
 
@@ -18,16 +23,22 @@ export default async function handler(req, res) {
   try {
     const { repoUrl, analysisResult, summary, strengths, weaknesses } = req.body || {};
 
-    const requiredFields = { repoUrl, analysisResult, summary, strengths, weaknesses };
-    for (const [key, value] of Object.entries(requiredFields)) {
-      if (!value || typeof value !== 'string' || value.trim() === '') {
-        return res.status(400).json({ error: `Missing or invalid field: ${key}` });
-      }
+    if (!repoUrl || typeof repoUrl !== 'string' || repoUrl.trim() === '') {
+      return res.status(400).json({ error: 'Missing or invalid field: repoUrl' });
+    }
+    if (!analysisResult || typeof analysisResult !== 'string' || analysisResult.trim() === '') {
+      return res.status(400).json({ error: 'Missing or invalid field: analysisResult' });
     }
 
     const id = crypto.randomUUID();
 
-    await kv.set(`share:${id}`, { repoUrl, analysisResult, summary, strengths, weaknesses }, { ex: SHARE_TTL });
+    await redis.set(`share:${id}`, JSON.stringify({
+      repoUrl: repoUrl.trim(),
+      analysisResult,
+      summary: typeof summary === 'string' ? summary : '',
+      strengths: typeof strengths === 'string' ? strengths : '',
+      weaknesses: typeof weaknesses === 'string' ? weaknesses : '',
+    }), { ex: SHARE_TTL });
 
     return res.status(200).json({ id, url: `/share/${id}` });
   } catch (error) {
