@@ -122,6 +122,6 @@ MIT — see [LICENSE](LICENSE)
 
 ---
 
-**DARIO-engineer** · Built with GitHub Copilot CLI for the [DEV.to Copilot CLI Challenge 2026](https://dev.to/challenges/github)
+**darpimen11** · Built with GitHub Copilot CLI for the [DEV.to Copilot CLI Challenge 2026](https://dev.to/challenges/github)
 
 *RepoLens AI is compatible with Google Gemini 2.0, Gemini 2.5 Pro, and future Gemini models via automatic model discovery.*
